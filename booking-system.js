@@ -1,25 +1,35 @@
 const express = require("express");
 const { createClient } = require("redis");
 const { v4: uuidv4 } = require("uuid");
+require("dotenv").config();
 
 const app = express();
 app.use(express.json());
 
+// Redis connection (works locally + on Render)
 const client = createClient({
-  url: "redis://127.0.0.1:6379"
+  url: process.env.REDIS_URL || "redis://127.0.0.1:6379"
 });
 
-client.connect();
+client.on("error", (err) => console.error("Redis Client Error", err));
+
+(async () => {
+  await client.connect();
+})();
 
 const TOTAL_SEATS = 100;
 const LOCK_TIMEOUT = 5000;
 
 // Initialize seats
 async function initializeSeats() {
-  await client.set("available_seats", TOTAL_SEATS);
+  const existing = await client.get("available_seats");
+  if (!existing) {
+    await client.set("available_seats", TOTAL_SEATS);
+  }
 }
 initializeSeats();
 
+// Booking API
 app.post("/api/book", async (req, res) => {
   const lockKey = "seat_lock";
   const lockId = uuidv4();
@@ -70,6 +80,9 @@ app.post("/api/book", async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("Booking system running on port 3000");
+// Use dynamic port for deployment
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Booking system running on port ${PORT}`);
 });
