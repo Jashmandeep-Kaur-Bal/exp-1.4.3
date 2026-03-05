@@ -29,13 +29,19 @@ async function initializeSeats() {
 }
 initializeSeats();
 
+
+// ✅ NEW ROUTE (Homepage Message)
+app.get("/", (req, res) => {
+  res.send("Concurrent Ticket Booking System is Live 🚀");
+});
+
+
 // Booking API
 app.post("/api/book", async (req, res) => {
   const lockKey = "seat_lock";
   const lockId = uuidv4();
 
   try {
-    // Acquire lock
     const lock = await client.set(lockKey, lockId, {
       NX: true,
       PX: LOCK_TIMEOUT,
@@ -63,7 +69,6 @@ app.post("/api/book", async (req, res) => {
 
     const bookingId = Date.now();
 
-    // Release lock safely
     const currentLock = await client.get(lockKey);
     if (currentLock === lockId) {
       await client.del(lockKey);
